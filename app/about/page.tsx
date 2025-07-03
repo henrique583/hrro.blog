@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Home() {
+export default function Blog() {
     return (
         <div className="bg-black">
             <header className="w-1/2 mx-auto bg-blue-200">
