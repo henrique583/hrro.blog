@@ -1,0 +1,122 @@
+---
+title: "How eduroam Works"
+slug: "how-eduroam-works"
+publishedAt: "2026-01-27"
+excerpt: "How a global authentication system lets students securely connect to Wi-Fi at universities around the world."
+updatedAt: "2026-01-27"
+tags: ["networking", "security", "education"]
+keywords: ["eduroam", "wifi", "authentication", "radius", "802.1x"]
+quizId: "how-eduroam-works"
+draft: false
+---
+
+## The Problem eduroam Solves
+
+Universities want Wi-Fi that is:
+
+- secure
+- scalable
+- usable by thousands of transient users
+- interoperable across institutions
+
+Traditional Wi-Fi setups (shared passwords, captive portals) don’t scale well and are insecure.
+
+**eduroam** (education roaming) solves this by turning Wi-Fi access into an **identity-based authentication problem**, not a location-based one.
+
+---
+
+## High-Level Idea
+
+eduroam works by separating:
+
+- **where you connect** (the local campus network)
+- **who you are** (your home institution identity)
+
+When you connect to eduroam at *any* participating institution, that institution **does not authenticate you itself**.  
+Instead, it securely forwards your credentials back to your **home university**, which vouches for you.
+
+---
+
+## The Role of 802.1X
+
+eduroam uses the **IEEE 802.1X** standard for network access control.
+
+This introduces three actors:
+
+1. **Supplicant** – your device (laptop/phone)
+2. **Authenticator** – the access point
+3. **Authentication Server** – a RADIUS server
+
+Your device never sends credentials directly to the access point.  
+All authentication is handled through a secure, encrypted exchange.
+
+---
+
+## Authentication with RADIUS
+
+The backbone of eduroam is **RADIUS (Remote Authentication Dial-In User Service)**.
+
+Here’s the simplified flow:
+
+1. You connect to the `eduroam` SSID.
+2. Your device presents a username like:
+    user@university.edu
+
+3. The local RADIUS server sees the domain (`university.edu`).
+4. It forwards the authentication request up the eduroam hierarchy.
+5. The request eventually reaches your **home institution’s RADIUS server**.
+6. Your university validates your credentials and sends back:
+- **accept** or **reject**
+
+The local network never learns your password.
+
+---
+
+## Why eduroam Is Secure
+
+Several design choices make eduroam robust:
+
+- **Mutual authentication**  
+Your device verifies the server certificate before sending credentials.
+- **Encrypted credential exchange**  
+Authentication happens inside TLS (usually via EAP-TLS or PEAP).
+- **No shared passwords**  
+Each user authenticates individually.
+- **Minimal trust**  
+Visited institutions don’t need access to user databases.
+
+In effect, eduroam treats Wi-Fi like a federated login system.
+
+---
+
+## Certificates and Trust
+
+Your device trusts eduroam because:
+
+- institutions deploy **X.509 certificates**
+- certificate chains are validated during authentication
+- misconfigured or fake access points fail verification
+
+This prevents common attacks like evil-twin hotspots that steal credentials.
+
+---
+
+## Why eduroam Works Globally
+
+eduroam succeeds because it is:
+
+- **federated** – no single global user database
+- **hierarchical** – national and regional RADIUS proxies
+- **standards-based** – built on widely supported protocols
+
+Each institution controls its own users, but agrees on shared rules and infrastructure.
+
+---
+
+## Key Takeaway
+
+eduroam works by **decoupling identity from location**.
+
+Your credentials never belong to the network you’re visiting — they belong to your home institution, which securely authenticates you anywhere in the world.
+
+That’s why the same Wi-Fi name works at thousands of universities, airports, and research centers.
