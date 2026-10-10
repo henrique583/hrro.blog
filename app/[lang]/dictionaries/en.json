@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "HRRO",
+    "description": "Henrique Rodrigues — blog, projects and recent activity."
+  },
+  "nav": {
+    "home": "Home",
+    "blog": "Blog",
+    "projects": "Projects",
+    "about": "About",
+    "language": "Language"
+  },
+  "colors": {
+    "label": "Wave color",
+    "blue": "Blue",
+    "red": "Red",
+    "green": "Green",
+    "custom": "Pick a custom color",
+    "hex": "Hex"
+  },
+  "home": {
+    "recentActivity": "Recent activity...",
+    "empty": "Nothing to show yet.",
+    "loading": "Loading recent activity"
+  },
+  "feed": {
+    "on": "on",
+    "translatedFrom": "Translated from {lang}",
+    "languages": { "EN": "English", "PT": "Portuguese", "ES": "Spanish", "FR": "French" },
+    "github": {
+      "pushedTo": "pushed to",
+      "in": "in",
+      "moreCommits": "+{count} more commits in this push"
+    },
+    "goodreads": {
+      "rated": "rated a book",
+      "reviewed": "reviewed a book",
+      "read": "read a book",
+      "by": "by",
+      "ratings": ["did not like it", "it was ok", "liked it", "really liked it", "it was amazing"]
+    },
+    "letterboxd": {
+      "reviewBy": "Review by",
+      "watchedBy": "Watched by",
+      "watched": "Watched",
+      "rewatched": "Rewatched",
+      "spoilers": "This review may contain spoilers. Hover to reveal.",
+      "liked": "Liked"
+    },
+    "linkedin": {
+      "seeMore": "…see more"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "back": "Back home"
+  }
+}

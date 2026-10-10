@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "title": "HRRO",
+    "description": "Henrique Rodrigues — blog, projetos e atividade recente."
+  },
+  "nav": {
+    "home": "Início",
+    "blog": "Blog",
+    "projects": "Projetos",
+    "about": "Sobre",
+    "language": "Idioma"
+  },
+  "colors": {
+    "label": "Cor das ondas",
+    "blue": "Azul",
+    "red": "Vermelho",
+    "green": "Verde",
+    "custom": "Escolher uma cor personalizada",
+    "hex": "Hex"
+  },
+  "home": {
+    "recentActivity": "Atividade recente...",
+    "empty": "Nada para mostrar ainda.",
+    "loading": "Carregando atividade recente"
+  },
+  "feed": {
+    "on": "no",
+    "translatedFrom": "Traduzido do {lang}",
+    "languages": { "EN": "inglês", "PT": "português", "ES": "espanhol", "FR": "francês" },
+    "github": {
+      "pushedTo": "enviou para",
+      "in": "em",
+      "moreCommits": "+{count} commits neste push"
+    },
+    "goodreads": {
+      "rated": "avaliou um livro",
+      "reviewed": "resenhou um livro",
+      "read": "leu um livro",
+      "by": "por",
+      "ratings": ["não gostei", "foi ok", "gostei", "gostei muito", "foi incrível"]
+    },
+    "letterboxd": {
+      "reviewBy": "Crítica de",
+      "watchedBy": "Assistido por",
+      "watched": "Assistido em",
+      "rewatched": "Reassistido em",
+      "spoilers": "Esta crítica pode conter spoilers. Passe o mouse para revelar.",
+      "liked": "Curtiu"
+    },
+    "linkedin": {
+      "seeMore": "…ver mais"
+    }
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "back": "Voltar ao início"
+  }
+}
