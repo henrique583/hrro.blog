@@ -14,7 +14,7 @@ import {
 } from "./waves-data";
 
 // Five layered wave bands down each side of the page (from waves-morph.svg
-// plus the sssurf variations). Each band drifts up along the shore at its own
+// plus the sssurf variations). Each band drifts down along the shore at its own
 // speed and slowly morphs between ten shapes. Bands fade in opacity from the
 // solid front band to a faint one furthest back.
 //
@@ -165,7 +165,7 @@ function drawBands(f: Frame, t: number) {
     const band = bands[i];
     const offset = i * BAND_SPACING;
 
-    // Drift: one period every `drift` seconds, moving up the page.
+    // Drift: one period every `drift` seconds, moving down the page.
     const drift = ((((t - band.driftDelay) / band.drift) % 1) + 1) % 1;
     const driftUnits = drift * WAVE_PERIOD;
     // Morph: which pair of shapes we're between, and how far.
@@ -176,7 +176,7 @@ function drawBands(f: Frame, t: number) {
     const mix = ease(step - Math.floor(step));
 
     const edgeAt = (pageY: number) => {
-      const s = pageY / scale + driftUnits;
+      const s = pageY / scale - driftUnits;
       const a = sampleAt(from, s);
       const y = a + (sampleAt(to, s) - a) * mix;
       const depth = Math.max(0, (WAVE_DEPTH - y - offset - VIEW_FROM) * scale);
