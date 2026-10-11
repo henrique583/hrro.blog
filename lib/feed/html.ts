@@ -29,3 +29,20 @@ export function htmlToText(html: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
+
+/**
+ * Returns `url` only if it's https and on one of the given domains (or their
+ * subdomains), else null. Feed links and images come from third-party RSS, so
+ * this keeps anything unexpected (like `javascript:` URLs) off the page.
+ */
+export function safeUrl(url: string | undefined | null, domains: string[]): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    const allowed = domains.some((d) => host === d || host.endsWith(`.${d}`));
+    return parsed.protocol === "https:" && allowed ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}

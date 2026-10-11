@@ -50,7 +50,7 @@ async function commitsInPush(event: PushEvent): Promise<Commit[]> {
 
 export async function getGitHubCommits(limit = 3): Promise<GitHubCommit[]> {
   "use cache";
-  cacheLife({ stale: 300, revalidate: 900, expire: 86400 });
+  cacheLife("feed");
   cacheTag("feed", "feed:github");
 
   try {

@@ -39,12 +39,15 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
       <head>
         <InlineScript html={waveColorScript} />
       </head>
-      <body className="min-h-dvh">
-        <Waves />
+      <body className="flex min-h-dvh flex-col">
         <Header locale={locale} dict={dict} />
-        <div className="relative z-10 px-4 pt-4 pb-24">
-          <ColorSelector labels={dict.colors} />
-          <main className="mx-auto mt-8 max-w-[590px]">{children}</main>
+        {/* The waves span from below the header to the bottom of the page. */}
+        <div className="relative flex-1">
+          <Waves />
+          <div className="relative z-10 px-4 pt-4 pb-24">
+            <ColorSelector labels={dict.colors} />
+            <main className="mx-auto mt-8 max-w-[590px]">{children}</main>
+          </div>
         </div>
       </body>
     </html>

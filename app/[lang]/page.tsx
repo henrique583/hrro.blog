@@ -39,7 +39,7 @@ export default async function Home() {
   return (
     <>
       <SocialLinks />
-      <h1 className="mt-10 mb-10 text-center text-xl tracking-wide">
+      <h1 className="mt-10 mb-10 font-terminal text-center text-xl">
         {dict.home.recentActivity}
       </h1>
       <Suspense fallback={<FeedSkeleton label={dict.home.loading} />}>

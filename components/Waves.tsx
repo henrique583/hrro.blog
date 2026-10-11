@@ -1,67 +1,351 @@
-// Animated waves on both sides of the page. The source wave is drawn
-// horizontally (crest on top), so it's rotated 90° to run down the left edge,
-// and the right panel mirrors it with CSS.
+"use client";
 
-const WAVE_PATH =
-  "M-10,10C30.544871794871796,10.416666666666666,105.60897435897436,15.541666666666668,184.6153846153846,12C263.62179487179486,8.458333333333332,292.3076923076923,-10.333333333333332,369.2307692307692,-7C446.15384615384613,-3.666666666666667,476.9230769230769,28.208333333333332,553.8461538461538,28C630.7692307692307,27.791666666666668,661.5384615384615,-9.25,738.4615384615385,-8C815.3846153846154,-6.75,846.1538461538462,34.208333333333336,923.0769230769231,34C1000,33.791666666666664,1030.7692307692307,-11.083333333333334,1107.6923076923076,-9C1184.6153846153845,-6.916666666666666,1215.3846153846155,44.208333333333336,1292.3076923076924,44C1369.2307692307693,43.791666666666664,1400,-6.875,1476.923076923077,-10C1553.8461538461538,-13.125,1584.6153846153845,26.291666666666668,1661.5384615384614,29C1738.4615384615383,31.708333333333332,1769.2307692307693,1.9583333333333333,1846.1538461538462,3C1923.076923076923,4.041666666666667,1953.8461538461538,35.666666666666664,2030.7692307692307,34C2107.6923076923076,32.333333333333336,2138.461538461538,-7.291666666666666,2215.3846153846152,-5C2292.3076923076924,-2.7083333333333335,2309.455128205128,-39.375,2400,45C2490.544871794872,129.375,3254.1666666666665,221.875,2650,400C2045.8333333333335,578.125,156.25,795.8333333333334,-500,900";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { defaultWaveColor, readWaveColor, subscribeWaveColor } from "@/lib/wave-color";
+import {
+  BAND_SPACING,
+  GRADIENT_DEPTH,
+  GRADIENT_TOP,
+  MORPH_STEP_SECONDS,
+  WAVE_DEPTH,
+  WAVE_PERIOD,
+  bands,
+  shapes,
+} from "./waves-data";
 
-// Original layer offsets: the group is shifted by (9.7, 239.5) and each layer
-// by a further 58 / 116 / 174 units.
-const ORIGIN = { x: 9.7, y: 239.5 };
-const SHORE = 480; // How far in (in viewBox units) the rotated waves sit.
-const VIEW = { width: 250, height: 2400 };
+// Five layered wave bands down each side of the page (from waves-morph.svg
+// plus the sssurf variations). Each band drifts up along the shore at its own
+// speed and slowly morphs between ten shapes. Bands fade in opacity from the
+// solid front band to a faint one furthest back.
+//
+// At the top, just below the header, every band narrows into the same point
+// at the page edge, so the water fans out from a single source (outer bands
+// make wider arcs). Because that shape is fixed while the waves keep moving,
+// the waves are drawn on canvas each frame rather than as sliding SVGs.
+//
+// Coordinates: shapes are horizontal in the data (x along the shore, y is
+// depth), so they're rotated here: depth becomes distance from the page edge
+// and position along the shore runs down the page. The right side mirrors the
+// left. The canvases stay fixed to the viewport but draw in page coordinates,
+// so the waves scroll with the page and only cover the area below the header.
+//
+// A light glows deep in the sea: on a slow cycle the waves dim while it's out
+// and brighten past their base tone as it rises, with a soft radial glow near
+// the page edge.
 
-/** Rotate a horizontal-wave layer 90° clockwise: (x, y) → (SHORE - y, x). */
-function rotate(offsetY: number) {
-  return `matrix(0,1,-1,0,${SHORE - ORIGIN.y - offsetY},${ORIGIN.x})`;
+const VIEW_FROM = 100; // depth units next to the page edge that are just solid deep water
+const VIEW_TO = 660; // just past the faintest band's highest crest
+const VIEW_DEPTH = VIEW_TO - VIEW_FROM;
+const GLOW_SECONDS = 8; // one full rise and fall of the light deep in the sea
+const GLOW_SPACING = 1100; // px between glow spots down the page, so one is always in view
+/** How far down the page (in panel widths) the bands take to fan out from the source point. */
+const FAN_LENGTH = 1.5;
+/** Shape of that curve: 1 = gentle taper, lower = rounder bulge into the point. */
+const FAN_ROUNDNESS = 0.4;
+const STEP_Y = 4; // px between sampled points along each band's edge
+
+const panelWidth = (viewport: number) => Math.min(220, Math.max(80, viewport * 0.13));
+
+/* ---------- Color ---------- */
+
+function hexToHsl(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h =
+    max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
 }
 
-function WavePanel({ side }: { side: "left" | "right" }) {
-  const grad = `wave-grad-${side}`;
-  const glow = `wave-glow-${side}`;
-  return (
-    <div className={`wave-panel wave-panel--${side}`} aria-hidden>
-      <svg viewBox={`0 0 ${VIEW.width} ${VIEW.height}`} preserveAspectRatio="xMinYMin slice">
-        <defs>
-          <linearGradient id={grad} x1="50%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" style={{ stopColor: "var(--wave-color)" }} />
-            <stop offset="100%" style={{ stopColor: "var(--wave-dark)" }} />
-          </linearGradient>
-          <filter id={glow} x="-50%" y="-10%" width="200%" height="120%">
-            <feGaussianBlur stdDeviation="16" />
-          </filter>
-        </defs>
-
-        {/* Foam: the outermost, translucent white crest. */}
-        <g className="wave-layer wave-layer--foam">
-          <path d={WAVE_PATH} transform={rotate(58)} fill="#fff" opacity={0.07} />
-        </g>
-        <g className="wave-layer wave-layer--mid">
-          <path d={WAVE_PATH} transform={rotate(116)} fill={`url(#${grad})`} opacity={0.53} />
-        </g>
-        <g className="wave-glow">
-          <path
-            d={WAVE_PATH}
-            transform={rotate(174)}
-            fill="none"
-            stroke="var(--wave-color)"
-            strokeWidth={14}
-            filter={`url(#${glow})`}
-          />
-        </g>
-        <g className="wave-layer wave-layer--front">
-          <path d={WAVE_PATH} transform={rotate(174)} fill={`url(#${grad})`} />
-        </g>
-      </svg>
-    </div>
-  );
+/** Crest and glow colors from the selected wave color. */
+function waveColors(hex: string) {
+  const [h, s, l] = hexToHsl(hex);
+  // Normalize lightness so very dark or very bright picks still read as water.
+  const base = Math.min(0.45, Math.max(0.28, l));
+  const hsl = (sat: number, light: number, alpha = 1) =>
+    `hsl(${h.toFixed(0)} ${(s * sat * 100).toFixed(0)}% ${(light * 100).toFixed(0)}% / ${alpha})`;
+  return {
+    // A little darker than the picked color so it isn't too bright.
+    crest: hsl(0.9, base * 0.9),
+    // The light deep in the water: a brighter, softer version of the color.
+    glow: hsl(0.8, Math.min(0.68, base * 1.7), 0.7),
+  };
 }
+
+/* ---------- Shapes and motion ---------- */
+
+/** Each shape sampled as crest height for every unit along one period. */
+const SAMPLES = shapes.map((shape) => {
+  const lut = new Float32Array(WAVE_PERIOD + 1);
+  let x0 = 0;
+  let y0 = shape.start;
+  let filled = 0;
+  for (const [c1x, c1y, c2x, c2y, x, y] of shape.segments) {
+    let px = x0;
+    let py = y0;
+    for (let i = 1; i <= 64; i++) {
+      const t = i / 64;
+      const u = 1 - t;
+      const bx = u * u * u * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t * t * t * x;
+      const by = u * u * u * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t * t * t * y;
+      for (; filled <= Math.min(WAVE_PERIOD, Math.floor(bx)); filled++) {
+        lut[filled] = bx === px ? by : py + ((by - py) * (filled - px)) / (bx - px);
+      }
+      px = bx;
+      py = by;
+    }
+    x0 = x;
+    y0 = y;
+  }
+  return lut;
+});
+
+/** Crest height of a sampled shape at any (wrapped) position along the shore. */
+function sampleAt(lut: Float32Array, s: number) {
+  const w = ((s % WAVE_PERIOD) + WAVE_PERIOD) % WAVE_PERIOD;
+  const i = Math.floor(w);
+  return lut[i] + (lut[i + 1] - lut[i]) * (w - i);
+}
+
+// Morph order: alternate the original shapes with the sssurf variations so
+// the sea keeps changing character, then ease back to the first.
+const ORDER = shapes.map((_, i) => (i % 2 === 0 ? i / 2 : shapes.length / 2 + (i - 1) / 2));
+const MORPH_SECONDS = MORPH_STEP_SECONDS * ORDER.length;
+
+/** The original's easing between shapes: cubic-bezier(0.45, 0, 0.55, 1). */
+function ease(x: number) {
+  const bez = (t: number, a: number, b: number) =>
+    3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    if (bez(mid, 0.45, 0.55) < x) lo = mid;
+    else hi = mid;
+  }
+  return bez((lo + hi) / 2, 0, 1);
+}
+
+/**
+ * How much of a band's depth shows at a given distance below the source
+ * point: 0 at the point, 1 once fully out. A rounded, quarter-circle-like
+ * profile: the bands leave the point heading almost sideways and bulge out
+ * to nearly full width quickly, so they curve into the point rather than
+ * slanting straight down to it. Lower FAN_ROUNDNESS = rounder, fuller curve.
+ */
+function fan(u: number) {
+  const x = Math.min(1, Math.max(0, u));
+  return (1 - (1 - x) ** 2) ** FAN_ROUNDNESS;
+}
+
+/* ---------- Drawing ---------- */
+
+interface Frame {
+  ctx: CanvasRenderingContext2D;
+  width: number; // canvas width in px
+  top: number; // page y (relative to the wave area) of the canvas's top row
+  y0: number; // visible rows of the canvas: [y0, y1]
+  y1: number;
+  crest: string;
+}
+
+function drawBands(f: Frame, t: number) {
+  const { ctx, width, top, y0, y1 } = f;
+  const scale = width / VIEW_DEPTH; // px per shape unit
+  const fanPx = width * FAN_LENGTH;
+
+  for (let i = 0; i < bands.length; i++) {
+    const band = bands[i];
+    const offset = i * BAND_SPACING;
+
+    // Drift: one period every `drift` seconds, moving up the page.
+    const drift = ((((t - band.driftDelay) / band.drift) % 1) + 1) % 1;
+    const driftUnits = drift * WAVE_PERIOD;
+    // Morph: which pair of shapes we're between, and how far.
+    const phase = ((((t - band.morphBegin) / MORPH_SECONDS) % 1) + 1) % 1;
+    const step = phase * ORDER.length;
+    const from = SAMPLES[ORDER[Math.floor(step) % ORDER.length]];
+    const to = SAMPLES[ORDER[(Math.floor(step) + 1) % ORDER.length]];
+    const mix = ease(step - Math.floor(step));
+
+    const edgeAt = (pageY: number) => {
+      const s = pageY / scale + driftUnits;
+      const a = sampleAt(from, s);
+      const y = a + (sampleAt(to, s) - a) * mix;
+      const depth = Math.max(0, (WAVE_DEPTH - y - offset - VIEW_FROM) * scale);
+      return depth * fan(pageY / fanPx);
+    };
+
+    ctx.beginPath();
+    ctx.moveTo(0, y0);
+    for (let y = y0; y <= y1 + STEP_Y; y += STEP_Y) ctx.lineTo(edgeAt(y + top), y);
+    ctx.lineTo(0, y1 + STEP_Y);
+    ctx.closePath();
+
+    // As in the original: crest color at the band's top, fading to black
+    // GRADIENT_DEPTH units deeper (past the page edge, so never fully black).
+    const gx = (WAVE_DEPTH - GRADIENT_TOP - offset - VIEW_FROM) * scale;
+    const grad = ctx.createLinearGradient(gx, 0, gx - GRADIENT_DEPTH * scale, 0);
+    grad.addColorStop(0, f.crest);
+    grad.addColorStop(1, "#000");
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = band.opacity;
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- Component ---------- */
+
+const css = `
+/* The light deep in the sea: the waves dim while it's out and brighten past
+   their base tone as it rises, while the glow swells and fades. */
+@keyframes hrro-depth-dim {
+  0%, 100% { filter: brightness(0.7); }
+  50% { filter: brightness(1.3); }
+}
+@keyframes hrro-depth-glow {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+.hrro-depth-dim { animation: hrro-depth-dim ${GLOW_SECONDS}s ease-in-out infinite; }
+.hrro-depth-glow { animation: hrro-depth-glow ${GLOW_SECONDS}s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hrro-depth-dim, .hrro-depth-glow { animation: none !important; }
+}`;
+
+// Fixed to the viewport; the drawing itself follows the page as it scrolls.
+const canvasStyle: CSSProperties = { position: "fixed", top: 0, display: "block", pointerEvents: "none" };
 
 export default function Waves() {
+  const areaRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLCanvasElement>(null);
+  const rightRef = useRef<HTMLCanvasElement>(null);
+  const [layout, setLayout] = useState<{ width: number; phone: boolean } | null>(null);
+  const color = useSyncExternalStore(subscribeWaveColor, readWaveColor, () => defaultWaveColor);
+  const { crest, glow } = waveColors(color);
+  const crestRef = useRef(crest);
+
+  useEffect(() => {
+    crestRef.current = crest;
+  }, [crest]);
+
+  useEffect(() => {
+    const area = areaRef.current;
+    const left = leftRef.current;
+    const right = rightRef.current;
+    if (!area || !left || !right) return;
+    const canvases = [left, right];
+    const contexts = canvases.map((c) => c.getContext("2d")!);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let width = 0;
+    let height = 0;
+    let raf = 0;
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = panelWidth(window.innerWidth);
+      height = window.innerHeight;
+      canvases.forEach((c, i) => {
+        c.width = Math.round(width * dpr);
+        c.height = Math.round(height * dpr);
+        c.style.width = `${width}px`;
+        c.style.height = `${height}px`;
+        // Draw the right side mirrored so both use the same left-side math.
+        contexts[i].setTransform(i === 0 ? dpr : -dpr, 0, 0, dpr, i === 0 ? 0 : c.width, 0);
+      });
+      setLayout({ width, phone: window.innerWidth <= 640 });
+    };
+
+    const draw = (t: number) => {
+      const rect = area.getBoundingClientRect();
+      // Only the part of the viewport covered by the wave area (below the header).
+      const y0 = Math.max(0, rect.top);
+      const y1 = Math.min(height, rect.bottom);
+      contexts.forEach((ctx) => {
+        ctx.clearRect(0, 0, width, height);
+        if (y1 <= y0) return;
+        drawBands({ ctx, width, top: -rect.top, y0, y1, crest: crestRef.current }, t);
+      });
+    };
+
+    const frame = (ms: number) => {
+      draw(ms / 1000);
+      raf = requestAnimationFrame(frame);
+    };
+    // With reduced motion, a still image that still scrolls with the page.
+    const drawStill = () => draw(0);
+    const onResize = () => {
+      resize();
+      if (reduceMotion.matches) drawStill();
+    };
+
+    resize();
+    window.addEventListener("resize", onResize);
+    if (reduceMotion.matches) {
+      drawStill();
+      window.addEventListener("scroll", drawStill, { passive: true });
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
+    const unsubscribe = subscribeWaveColor(() => {
+      if (reduceMotion.matches) requestAnimationFrame(drawStill);
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", drawStill);
+      unsubscribe();
+    };
+  }, []);
+
+  const phoneOpacity = layout?.phone ? 0.55 : 1;
+
+  // Glow spots deep in the water, centered on the page edge. "screen" only
+  // lightens, and the spots are narrow enough to stay within the water. They
+  // fade in below the source point, where the water is still narrow.
+  const glowStyle = (side: "left" | "right"): CSSProperties => {
+    const fade = `linear-gradient(to bottom, transparent 0, #000 ${(layout?.width ?? 0) * FAN_LENGTH}px)`;
+    return {
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      [side]: 0,
+      width: layout?.width ?? 0,
+      pointerEvents: "none",
+      mixBlendMode: "screen",
+      opacity: phoneOpacity,
+      maskImage: fade,
+      WebkitMaskImage: fade,
+    };
+  };
+  const glowSpots = (side: "left" | "right"): CSSProperties => ({
+    position: "absolute",
+    inset: 0,
+    backgroundImage: `radial-gradient(ellipse 70% ${GLOW_SPACING * 0.42}px at ${side === "left" ? "0%" : "100%"} 50%, ${glow}, transparent 72%)`,
+    backgroundSize: `100% ${GLOW_SPACING}px`,
+    backgroundRepeat: "repeat-y",
+  });
+
   return (
-    <>
-      <WavePanel side="left" />
-      <WavePanel side="right" />
-    </>
+    <div ref={areaRef} className="pointer-events-none absolute inset-0" aria-hidden>
+      <style>{css}</style>
+      <canvas ref={leftRef} className="hrro-depth-dim" style={{ ...canvasStyle, left: 0, opacity: phoneOpacity }} />
+      <canvas ref={rightRef} className="hrro-depth-dim" style={{ ...canvasStyle, right: 0, opacity: phoneOpacity }} />
+      {layout &&
+        (["left", "right"] as const).map((side) => (
+          <div key={side} style={glowStyle(side)}>
+            <div className="hrro-depth-glow" style={glowSpots(side)} />
+          </div>
+        ))}
+    </div>
   );
 }

@@ -1,18 +1,9 @@
-// LinkedIn has no API for reading your own posts, so add them here by hand.
-// Copy the post's link from its "•••" menu → "Copy link to post", paste the text,
-// and set the date it was posted. Newest first is easiest to read, but the
-// feed sorts everything by date anyway.
+// LinkedIn has no API for reading your own posts, so list them here. Paste
+// anything that contains the post's id: the iframe from "••• → Embed this
+// post", its src URL, the post's link, or just the "urn:li:share:…" part.
+// The site fetches the text from LinkedIn's public embed page and works out
+// the date from the id, so nothing else is needed. Order doesn't matter.
 
-export interface LinkedInEntry {
-  url: string;
-  date: string; // ISO date, e.g. "2026-10-01" or "2026-10-01T14:30:00Z"
-  text: string;
-}
-
-export const linkedinPosts: LinkedInEntry[] = [
-  // {
-  //   url: "https://www.linkedin.com/posts/henrique-rrodrigues_activity-1234567890",
-  //   date: "2026-10-01",
-  //   text: "Excited to share that…",
-  // },
+export const linkedinPosts: string[] = [
+  "urn:li:share:7448166357830918144",
 ];

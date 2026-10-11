@@ -1,14 +1,16 @@
 {
   "meta": {
-    "title": "HRRO",
+    "title": "HRRO Blog",
     "description": "Henrique Rodrigues — blog, projects and recent activity."
   },
   "nav": {
     "home": "Home",
     "blog": "Blog",
     "projects": "Projects",
-    "about": "About",
-    "language": "Language"
+    "about": "About Me",
+    "language": "Language",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "colors": {
     "label": "Wave color",
@@ -44,7 +46,8 @@
       "watchedBy": "Watched by",
       "watched": "Watched",
       "rewatched": "Rewatched",
-      "spoilers": "This review may contain spoilers. Hover to reveal.",
+      "spoilersHover": "This review may contain spoilers. Hover to reveal.",
+      "spoilersTap": "This review may contain spoilers. Tap to reveal.",
       "liked": "Liked"
     },
     "linkedin": {

@@ -9,6 +9,7 @@ import {
   setWaveColor,
   subscribeWaveColor,
   wavePresets,
+  applyWaveColor,
 } from "@/lib/wave-color";
 
 interface Props {
@@ -39,7 +40,7 @@ export default function ColorSelector({ labels }: Props) {
 
   // Switching languages swaps the root layout, which resets <html>'s inline style.
   useEffect(() => {
-    document.documentElement.style.setProperty("--wave-color", color);
+    applyWaveColor(color);
   }, [color]);
 
   useEffect(() => {
@@ -64,7 +65,8 @@ export default function ColorSelector({ labels }: Props) {
       <div
         role="radiogroup"
         aria-label={labels.label}
-        className="glass flex items-center gap-2.5 rounded-full px-3 py-2"
+        // Same 40px height as the social buttons below it.
+        className="glass flex h-10 items-center gap-2 rounded-full px-1.5"
       >
         {wavePresets.map((preset) => (
           <button
@@ -75,7 +77,7 @@ export default function ColorSelector({ labels }: Props) {
             aria-label={labels[preset.id]}
             title={labels[preset.id]}
             onClick={() => setWaveColor(preset.color)}
-            className={`size-8 cursor-pointer rounded-full transition-transform hover:scale-110 ${ring(color === preset.color)}`}
+            className={`size-7 cursor-pointer rounded-full transition-transform hover:scale-110 ${ring(color === preset.color)}`}
           >
             <Swatch color={preset.color} />
           </button>
@@ -87,12 +89,12 @@ export default function ColorSelector({ labels }: Props) {
           aria-expanded={open}
           title={labels.custom}
           onClick={() => setOpen((o) => !o)}
-          className={`relative grid size-8 cursor-pointer place-items-center rounded-full transition-transform hover:scale-110 ${ring(isCustom)}`}
-          style={{ background: isCustom ? color : "rgb(255 255 255 / 0.85)" }}
+          className={`relative grid size-7 cursor-pointer place-items-center rounded-full transition-transform hover:scale-110 ${ring(isCustom)}`}
+          style={{ background: isCustom ? color : "rgb(255 255 255 / 0.1)" }}
         >
           <LuPencil
             className="size-3.5"
-            style={{ color: isCustom ? "#fff" : "#02080f", filter: isCustom ? "drop-shadow(0 0 2px rgb(0 0 0 / .6))" : undefined }}
+            style={{ color: "#fff", filter: isCustom ? "drop-shadow(0 0 2px rgb(0 0 0 / .6))" : undefined }}
           />
         </button>
       </div>

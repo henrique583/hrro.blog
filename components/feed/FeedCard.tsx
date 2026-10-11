@@ -12,6 +12,7 @@ import type {
 import { localeInfo, type Locale } from "@/lib/i18n";
 import { profiles, SITE_TIME_ZONE, type Source } from "@/lib/site";
 import { SourceIcon } from "./SourceIcon";
+import Spoiler from "./Spoiler";
 
 type FeedDict = Dictionary["feed"];
 type Translated<T> = T & { translatedFrom: string | null };
@@ -52,7 +53,7 @@ function TranslatedNote({ from, dict, className }: { from: string | null; dict: 
 
 /* ---------- X ---------- */
 
-function XCard({ item, dict, locale }: CardProps<XPost>) {
+function XCard({ item, dict }: CardProps<XPost>) {
   const p = profiles.x;
   return (
     <div className="rounded-[20px] border border-white/60 bg-black p-4 text-[15px] leading-6 text-[#e7e9ea]">
@@ -66,14 +67,13 @@ function XCard({ item, dict, locale }: CardProps<XPost>) {
       </div>
       <p className="mt-3 line-clamp-[10] whitespace-pre-line break-words">{item.text}</p>
       <TranslatedNote from={item.translatedFrom} dict={dict} className="text-[#71767b]" />
-      <p className="mt-3 text-sm text-[#71767b]">{formatDate(item.date, locale)}</p>
     </div>
   );
 }
 
 /* ---------- GitHub ---------- */
 
-function GitHubCard({ item, dict, locale }: CardProps<GitHubCommit>) {
+function GitHubCard({ item, dict }: CardProps<GitHubCommit>) {
   const p = profiles.github;
   return (
     <div className="rounded-[20px] border border-[#3d444d] bg-[#0d1117] p-4 text-sm text-[#f0f6fc]">
@@ -99,28 +99,25 @@ function GitHubCard({ item, dict, locale }: CardProps<GitHubCommit>) {
           </div>
         </div>
       </div>
-      <div className="mt-3 flex justify-between gap-3 text-xs text-[#9198a1]">
-        <span>
-          {item.extraCommits > 0 && dict.github.moreCommits.replace("{count}", String(item.extraCommits))}
-        </span>
-        <span>{formatDate(item.date, locale)}</span>
-      </div>
+      <TranslatedNote from={item.translatedFrom} dict={dict} className="text-[#9198a1]" />
+      {item.extraCommits > 0 && (
+        <p className="mt-3 text-xs text-[#9198a1]">
+          {dict.github.moreCommits.replace("{count}", String(item.extraCommits))}
+        </p>
+      )}
     </div>
   );
 }
 
 /* ---------- LinkedIn ---------- */
 
-function LinkedInCard({ item, dict, locale }: CardProps<LinkedInPost>) {
+function LinkedInCard({ item, dict }: CardProps<LinkedInPost>) {
   const p = profiles.linkedin;
   return (
     <div className="rounded-[20px] border border-white/20 bg-[#1b1f23] p-4 text-sm leading-5 text-white/90">
       <div className="flex items-start gap-3">
         <Avatar source="linkedin" size={48} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{p.name}</p>
-          <p className="text-xs text-white/60">{formatDate(item.date, locale)}</p>
-        </div>
+        <p className="min-w-0 flex-1 truncate font-semibold">{p.name}</p>
         <SourceIcon source="linkedin" className="size-5 text-[#71b7fb]" />
       </div>
       <p className="mt-3 line-clamp-5 whitespace-pre-line break-words">{item.text}</p>
@@ -144,7 +141,7 @@ function GoodreadsStars({ rating }: { rating: number }) {
   );
 }
 
-function GoodreadsCard({ item, dict, locale }: CardProps<GoodreadsReview>) {
+function GoodreadsCard({ item, dict }: CardProps<GoodreadsReview>) {
   const p = profiles.goodreads;
   const g = dict.goodreads;
   const action = item.review ? g.reviewed : item.rating ? g.rated : g.read;
@@ -178,7 +175,6 @@ function GoodreadsCard({ item, dict, locale }: CardProps<GoodreadsReview>) {
       </div>
       {item.review && <p className="mt-3 line-clamp-5 whitespace-pre-line break-words font-serif leading-6">{item.review}</p>}
       <TranslatedNote from={item.translatedFrom} dict={dict} className="text-[#767676]" />
-      <p className="mt-3 text-xs text-[#767676]">{formatDate(item.date, locale)}</p>
     </div>
   );
 }
@@ -188,6 +184,8 @@ function GoodreadsCard({ item, dict, locale }: CardProps<GoodreadsReview>) {
 function letterboxdStars(rating: number) {
   return "★".repeat(Math.floor(rating)) + (rating % 1 ? "½" : "");
 }
+
+const reviewClass = "mt-3 line-clamp-6 whitespace-pre-line break-words leading-6 text-[#def]";
 
 function LetterboxdCard({ item, dict, locale }: CardProps<LetterboxdEntry>) {
   const p = profiles.letterboxd;
@@ -229,12 +227,17 @@ function LetterboxdCard({ item, dict, locale }: CardProps<LetterboxdEntry>) {
       </div>
       {item.review && (
         <>
-          {item.spoilers && <p className="mt-3 text-xs italic text-[#ee7000]">{l.spoilers}</p>}
-          <p
-            className={`mt-3 line-clamp-6 whitespace-pre-line break-words leading-6 text-[#def] ${item.spoilers ? "spoiler" : ""}`}
-          >
-            {item.review}
-          </p>
+          {item.spoilers && (
+            <p className="mt-3 text-xs italic text-[#ee7000]">
+              <span className="hint-hover">{l.spoilersHover}</span>
+              <span className="hint-touch">{l.spoilersTap}</span>
+            </p>
+          )}
+          {item.spoilers ? (
+            <Spoiler className={reviewClass}>{item.review}</Spoiler>
+          ) : (
+            <p className={reviewClass}>{item.review}</p>
+          )}
         </>
       )}
       <TranslatedNote from={item.translatedFrom} dict={dict} className="text-[#678]" />
@@ -263,9 +266,14 @@ export default function FeedCard({ item, dict, locale }: CardProps<TranslatedIte
   const p = profiles[item.source];
   return (
     <article>
-      <p className="mb-2.5 text-lg text-muted">
-        {p.handle} {dict.on} <span className="text-foreground/80">{p.platform}</span>
-      </p>
+      <header className="mb-2.5 flex items-baseline justify-between gap-4 text-muted">
+        <p className="min-w-0 truncate text-base sm:text-lg">
+          {p.handle} {dict.on} <span className="text-foreground/80">{p.platform}</span>
+        </p>
+        <time dateTime={item.date} className="shrink-0 text-xs sm:text-sm">
+          {formatDate(item.date, locale)}
+        </time>
+      </header>
       <a
         href={item.url}
         target="_blank"

@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { XMLParser } from "fast-xml-parser";
 import { profiles } from "@/lib/site";
-import { htmlToText } from "./html";
+import { htmlToText, safeUrl } from "./html";
 import type { LetterboxdEntry } from "./types";
 
 const parser = new XMLParser({ parseTagValue: false, isArray: (name) => name === "item" });
@@ -22,7 +22,7 @@ interface RssItem {
 
 export async function getLetterboxdEntries(limit = 5): Promise<LetterboxdEntry[]> {
   "use cache";
-  cacheLife({ stale: 300, revalidate: 900, expire: 86400 });
+  cacheLife("feed");
   cacheTag("feed", "feed:letterboxd");
 
   try {
@@ -32,11 +32,12 @@ export async function getLetterboxdEntries(limit = 5): Promise<LetterboxdEntry[]
 
     return items
       .filter((item) => item["letterboxd:filmTitle"]) // skips lists
+      .filter((item) => safeUrl(item.link, ["letterboxd.com"]))
       .slice(0, limit)
       .map((item) => {
         const guid = typeof item.guid === "string" ? item.guid : item.guid["#text"];
         const html = item.description ?? "";
-        const poster = html.match(/<img src="([^"]+)"/)?.[1] ?? null;
+        const poster = safeUrl(html.match(/<img src="([^"]+)"/)?.[1], ["ltrbxd.com"]);
         const isReview = guid.startsWith("letterboxd-review");
         // Drop the poster paragraph, spoiler notice and the auto-generated "Watched on…" line.
         const body = html
@@ -47,7 +48,7 @@ export async function getLetterboxdEntries(limit = 5): Promise<LetterboxdEntry[]
         return {
           source: "letterboxd" as const,
           id: guid,
-          url: item.link,
+          url: safeUrl(item.link, ["letterboxd.com"]) ?? "",
           date: new Date(item.pubDate).toISOString(),
           film: item["letterboxd:filmTitle"] ?? "",
           year: item["letterboxd:filmYear"] ?? "",

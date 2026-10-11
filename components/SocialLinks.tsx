@@ -1,5 +1,5 @@
 import { profiles, socialOrder } from "@/lib/site";
-import { SourceIcon } from "./feed/SourceIcon";
+import { BrandIcon } from "./BrandIcon";
 
 export default function SocialLinks() {
   return (
@@ -10,9 +10,9 @@ export default function SocialLinks() {
             href={profiles[source].url}
             target="_blank"
             rel="noopener noreferrer"
-            className="glass glass-interactive flex items-center gap-2 rounded-full px-4 py-2 text-[15px] font-medium"
+            className="glass glass-interactive flex h-10 items-center gap-2 rounded-full px-4 text-[15px] font-medium"
           >
-            <SourceIcon source={source} className="size-4" />
+            <BrandIcon source={source} />
             {profiles[source].platform}
           </a>
         </li>
