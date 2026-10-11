@@ -52,7 +52,8 @@ export async function generateMetadata(): Promise<Metadata> {
         .map((l) => localeInfo[l].bcp47.replace("-", "_")),
     },
     twitter: {
-      card: "summary",
+      // Large card with the share image (app/[lang]/opengraph-image.tsx); X falls back to og:image.
+      card: "summary_large_image",
       title: dict.meta.title,
       description: dict.meta.description,
       creator: profiles.x.handle,
@@ -65,7 +66,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {
   const dict = await getDictionary();
 
   return (
-    // The inline script sets --wave-color on <html> before hydration.
+    // The inline script sets the --background tint on <html> before first paint.
     <html lang={localeInfo[locale].bcp47} className={`${inter.variable} antialiased`} suppressHydrationWarning>
       <head>
         <InlineScript html={waveColorScript} />

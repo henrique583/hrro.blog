@@ -1,6 +1,7 @@
-// Wave color preference, stored in localStorage and applied as CSS variables
-// on <html>: --wave-color, and --background, a near-black tint of the same hue
-// so the page isn't pure black.
+// Wave color preference, stored in localStorage. Components read it through
+// the small store below; the page background is derived from it and applied
+// as the --background CSS variable on <html> (a near-black tint of the same
+// hue, so the page isn't pure black).
 
 export const WAVE_COLOR_KEY = "wave-color";
 
@@ -35,13 +36,11 @@ export function backgroundFor(hex: string): string {
 /** Runs in <head> before paint so a saved color doesn't flash the default. */
 export const waveColorScript = `try{var c=localStorage.getItem(${JSON.stringify(
   WAVE_COLOR_KEY,
-)});if(!c||!/^#[0-9a-f]{6}$/i.test(c))c=${JSON.stringify(defaultWaveColor)};var s=document.documentElement.style;s.setProperty("--wave-color",c);s.setProperty("--background",(${backgroundFor.toString()})(c))}catch(e){}`;
+)});if(!c||!/^#[0-9a-f]{6}$/i.test(c))c=${JSON.stringify(defaultWaveColor)};document.documentElement.style.setProperty("--background",(${backgroundFor.toString()})(c))}catch(e){}`;
 
-/** Applies a wave color (and its background tint) to the page. */
-export function applyWaveColor(color: string) {
-  const style = document.documentElement.style;
-  style.setProperty("--wave-color", color);
-  style.setProperty("--background", backgroundFor(color));
+/** Applies a wave color's background tint to the page. */
+function applyWaveColor(color: string) {
+  document.documentElement.style.setProperty("--background", backgroundFor(color));
 }
 
 const listeners = new Set<() => void>();

@@ -86,18 +86,22 @@ app/
     layout.tsx                   Root layout: <html lang>, metadata, header, waves, color selector
     page.tsx                     Home page: social links + feed
     not-found.tsx                Translated 404 (used by /blog, /projects, /about for now)
+    opengraph-image.tsx          Share-preview image, one per language (§11)
     dictionaries.ts              Loads en.json / pt.json via the `lang` root param
     dictionaries/en.json, pt.json  All UI text
 components/
   Header.tsx, LanguageSelector.tsx, MobileNav.tsx
   ColorSelector.tsx, InlineScript.tsx
-  Waves.tsx, waves-data.ts       Ocean waves (§8)
+  Waves.tsx                      Ocean waves, animated on canvas (§8)
+  waves-data.ts                  Wave shapes and per-band settings
+  waves-geometry.ts              Shape maths shared by Waves.tsx and the share image
   SocialLinks.tsx, BrandIcon.tsx Social buttons (§10)
   feed/FeedCard.tsx, SourceIcon.tsx, Spoiler.tsx   Feed cards (§9.6)
 lib/
   i18n.ts                        Locale list, labels, flags' BCP-47 tags, DeepL codes
   site.ts                        Profile names/handles/URLs/avatars, Goodreads user id, time zone
   wave-color.ts                  Color store, page tint, before-paint script (§6)
+  use-dismiss.ts                 Close-on-outside-click/Escape hook for menus
   feed/                          One file per source + merge, translation, HTML helpers (§9)
 content/linkedin.ts              List of LinkedIn post ids to show (§9.2)
 public/avatars/                  Profile pictures used on the feed cards
@@ -189,24 +193,23 @@ A glass pill with three presets and a pencil button:
 | Red | `#D20000` |
 | Green | `#007000` |
 
-The swatches are drawn as small gradients (dark at the top, the color at the bottom) to hint at the water. The pencil opens a popover with a `react-colorful` picker and a hex input. Once a custom color is chosen, the pencil button is filled with it. The pill is exactly 40 px tall, the same height as the social buttons.
+The swatches are drawn as small gradients (dark at the top, the color at the bottom) to hint at the water. The pencil opens a popover with a `react-colorful` picker and a hex input. Clicking outside or pressing Escape closes it, using the `useDismiss` hook in `lib/use-dismiss.ts`, which the language menu shares. "Outside" means outside the selector's wrapper element, so that wrapper is sized to the pill (`w-fit mx-auto`) rather than spanning the full row; when it spanned the row, clicks to the left or right of the pill counted as inside and didn't close the picker. The popover is centered under the pill (`left-1/2 -translate-x-1/2`, `w-max`). Once a custom color is chosen, the pencil button is filled with it. The pill is exactly 40 px tall, the same height as the social buttons.
 
 ### Where the color lives (`lib/wave-color.ts`)
 
 - Saved in `localStorage` under `wave-color`.
-- Applied as two CSS variables on `<html>`:
-  - `--wave-color`: the chosen color.
-  - `--background`: a near-black tint of the same hue (`hsl(<hue> <60% of its saturation> 4%)`). The page isn't pure black; it's barely tinted toward the wave color. For the default blue that's `rgb(4, 10, 16)`.
+- Components read it through a tiny store (`subscribeWaveColor` / `readWaveColor`) with `useSyncExternalStore`, using a server snapshot of the default color so server and client render the same thing. The waves read the color this way, not from CSS.
+- The page background is derived from it and applied as one CSS variable on `<html>`: `--background`, a near-black tint of the same hue (`hsl(<hue> <60% of its saturation> 4%)`). The page isn't pure black; it's barely tinted toward the wave color. For the default blue that's `rgb(4, 10, 16)`.
 - `html`, `body` and the header all use `var(--background)`, so the whole page, including the area you see when you scroll past the top or bottom, picks up the tint.
-- A tiny store (`subscribeWaveColor` / `readWaveColor`) lets components react to changes through `useSyncExternalStore`, with a server snapshot of the default color so server and client render the same thing.
+- `setWaveColor` validates the value (expanding `#abc` to `#aabbcc`), updates `--background`, saves to `localStorage` and notifies the store.
 
 ### No flash on load
 
-The color has to be applied **before the first paint**, otherwise a visitor with a saved red would briefly see blue. `waveColorScript` is a small inline script in `<head>`. It reads `localStorage`, validates the value with a regex (only `#rrggbb` is accepted), and sets both CSS variables. The tint calculation (`backgroundFor`) is written once in TypeScript and inlined into the script with `backgroundFor.toString()`, so there's no second copy to keep in sync.
+The color has to be applied **before the first paint**, otherwise a visitor with a saved red would briefly see blue. `waveColorScript` is a small inline script in `<head>`. It reads `localStorage`, validates the value with a regex (only `#rrggbb` is accepted), and sets `--background`. The tint calculation (`backgroundFor`) is written once in TypeScript and inlined into the script with `backgroundFor.toString()`, so there's no second copy to keep in sync.
 
 `components/InlineScript.tsx` renders that script as `type="text/javascript"` on the server and `type="text/plain"` on the client, with `suppressHydrationWarning`. This is the pattern from the Next.js "preventing flash before hydration" guide. React warns if it renders a `<script>` on the client; this way the browser runs it once from the server HTML and React treats the client copy as inert text. `<html>` has `suppressHydrationWarning` because the script adds inline styles React didn't render.
 
-`ColorSelector` also re-applies the color in an effect. Originally this was because client-side locale switches replaced `<html>` and dropped its inline styles; it now also covers any other remount.
+Earlier versions also kept a `--wave-color` CSS variable and re-applied the color from an effect in `ColorSelector` (needed back when switching language swapped `<html>` client-side and dropped its inline styles). Both were removed: nothing reads the variable since the waves moved to canvas, and switching language is now a full page load, which re-runs the script.
 
 ---
 
@@ -249,7 +252,7 @@ On each side of the page, five layered bands of water drift down along the page 
 
 ### 8.3 Rendering (`components/Waves.tsx`)
 
-The waves are drawn on **two `<canvas>` elements** (left and right), redrawn every animation frame.
+The waves are drawn on **two `<canvas>` elements** (left and right), redrawn every animation frame. The shape maths (sampling, easing, the fan, the view range and colors) lives in `components/waves-geometry.ts` so the share-preview image (§11) can reuse it; the component itself only does the drawing, timing and glow.
 
 **Why canvas:** the fan-out (§8.5) is a shape fixed to the page (narrowing to a point under the header) while the waves keep moving. With SVG bands that slide via CSS transforms, a fixed shape can't be built into something that's moving; the best possible was cutting the bands off with a mask, which is what the slanted versions did. Drawing each frame lets each band's width be multiplied by a fixed "fan" factor based on its position on the page.
 
@@ -301,7 +304,7 @@ These are CSS animations defined in an inline `<style>` in the component, not in
 
 ### 8.7 Colors
 
-From the selected color (`waveColors()`): lightness is clamped to 0.28–0.45 so very dark or very bright custom picks still read as water. The **crest color** is that hue at 90% saturation and 0.9× the normalized lightness (a little darker than the pick, as you asked). The **glow color** is a lighter (up to 68% lightness), slightly desaturated version at 70% alpha. For the default blue the crest comes out very close to the original SVG's `#0059A2`.
+From the selected color (`waveColors()` in `waves-geometry.ts`): lightness is clamped to 0.28–0.45 so very dark or very bright custom picks still read as water. The **crest color** is that hue at 90% saturation and 0.9× the normalized lightness (a little darker than the pick, as you asked). The **glow color** is a lighter (up to 68% lightness), slightly desaturated version at 70% alpha. For the default blue the crest comes out very close to the original SVG's `#0059A2`.
 
 ### 8.8 Phones and reduced motion
 
@@ -331,8 +334,8 @@ Backups of earlier versions were kept outside the repo during development; git h
 
 | Want | Change |
 | --- | --- |
-| Rounder / gentler curve into the fan point | `FAN_ROUNDNESS` (lower = rounder; 1 = gentle taper) |
-| Bands reach full width sooner / later | `FAN_LENGTH` |
+| Rounder / gentler curve into the fan point | `FAN_ROUNDNESS` in `waves-geometry.ts` (lower = rounder; 1 = gentle taper) |
+| Bands reach full width sooner / later | `FAN_LENGTH` in `waves-geometry.ts` |
 | Faster / slower light cycle | `GLOW_SECONDS` |
 | Darker dim / brighter peak | `brightness(0.7)` / `brightness(1.3)` in `hrro-depth-dim` |
 | Glow spot spacing | `GLOW_SPACING` |
@@ -443,10 +446,15 @@ Profile names, handles, URLs and avatars are all in `lib/site.ts`. The feed card
 - **Title:** "HRRO Blog" (template `%s · HRRO Blog` for future pages). The header logo still reads "HRRO".
 - **Description:** per language, from the dictionaries.
 - **Also set:** author, application name, a canonical URL per locale, and `hreflang` alternates (`en-US`, `pt-BR`) so search engines link the two versions.
-- **Share previews:** Open Graph and Twitter (`summary`) tags with title, description, site name, locale (`en_US` / `pt_BR`) and `@henrique_rro` as creator.
+- **Share previews:** Open Graph and Twitter (`summary_large_image`) tags with title, description, site name, locale (`en_US` / `pt_BR`) and `@henrique_rro` as creator.
 - **Base URL:** `metadataBase` makes those URLs absolute. On Vercel it uses the `VERCEL_PROJECT_PRODUCTION_URL` system variable (your production domain); locally it falls back to `http://localhost:3000`.
-- **Icon:** `app/icon.svg` (layered blue waves on the site's dark background) replaces the default Next.js `favicon.ico`. The unused template images (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`) were removed.
-- **Not added yet:** a share-preview image (`opengraph-image`). Previews currently show text only.
+- **Icon:** `app/icon.svg` (a circle with layered blue waves on the site's dark background) replaces the default Next.js `favicon.ico`. The unused template images (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`) were removed.
+- **Share image** (`app/[lang]/opengraph-image.tsx`): a 1200×630 PNG per language, generated at build time with `ImageResponse` from `next/og`. It shows the site's tinted background, "HRRO Blog", your name, the translated tagline (the description without the leading name, which is already shown above it) and the platforms. On each side are the same five wave bands fanning out from the top corners, drawn from the real wave data with the same maths as the site.
+  - Next adds the `og:image` and `twitter:image` tags automatically (with size, type and alt text).
+  - It reads the locale from `params`, not `lang()`, because root params aren't available in image routes; the dictionaries are imported directly.
+  - The wave maths lives in `components/waves-geometry.ts` so both this server-rendered route and the client-only `Waves.tsx` can use it (server code can't import values from a `"use client"` module).
+  - Inter is fetched from Google Fonts, subset to just the characters used, inside a `"use cache"` function with `cacheLife("max")`. Without the cache, the uncached fetch made the route render on every request; with it, both images are prerendered at build. If the font can't be fetched, the default font is used.
+  - Colors are converted to hex because the image renderer has limited CSS color support. The image always uses the default blue; a visitor's chosen color is a local preference and doesn't apply to shared links.
 
 ---
 
@@ -497,4 +505,4 @@ With the once-a-day refresh:
 - **Blog / Projects / About Me** pages don't exist yet; the nav links show the translated 404.
 - **SF Mono** only renders on Apple devices (licensing); other systems get a fallback monospace.
 - **Dev server stale CSS:** after editing `globals.css`, restart `npm run dev` if changes don't appear (§2).
-- **`.claude/launch.json`** is a local preview config used during development; delete it or add it to `.gitignore` if you don't want it committed.
+- **`.claude/`** (local Claude Code settings) is git-ignored. `launch.json` had been committed earlier, so it was removed from tracking with `git rm --cached`; the file is still on disk.

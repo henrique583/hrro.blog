@@ -1,12 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  /* Overwritten before paint with a tint of the wave color (lib/wave-color.ts). */
   --background: #02080f;
   --foreground: #f2f5f8;
   --muted: #8b95a1;
-  /* Set by the color selector (see lib/wave-color.ts). */
-  --wave-color: #005ab4;
-  --wave-dark: #000e1b;
   color-scheme: dark;
 }
 

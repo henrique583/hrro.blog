@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { BR, US } from "country-flag-icons/react/3x2";
 import { LuChevronDown, LuCheck } from "react-icons/lu";
 import { LOCALE_COOKIE, localeInfo, locales, type Locale } from "@/lib/i18n";
+import { useDismiss } from "@/lib/use-dismiss";
 
 const flags: Record<Locale, typeof US> = { en: US, pt: BR };
 
@@ -22,19 +23,7 @@ export default function LanguageSelector({ locale, label }: { locale: Locale; la
   const rootRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useDismiss(rootRef, open, useCallback(() => setOpen(false), []));
 
   function select(next: Locale) {
     setOpen(false);

@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- HRRO: layered waves on the site's near-black background. -->
-  <rect width="64" height="64" rx="14" fill="#040a10"/>
-  <path d="M0 30c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#0e2c60" opacity=".55"/>
-  <path d="M0 38c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#1e4f98" opacity=".8"/>
-  <path d="M0 46c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#2f6fc2"/>
+  <!-- HRRO: layered waves on the site's near-black background, in a circle. -->
+  <clipPath id="c"><circle cx="32" cy="32" r="32"/></clipPath>
+  <g clip-path="url(#c)">
+    <rect width="64" height="64" fill="#040a10"/>
+    <path d="M0 30c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#0e2c60" opacity=".55"/>
+    <path d="M0 38c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#1e4f98" opacity=".8"/>
+    <path d="M0 46c8-6 16-6 24 0s16 6 24 0 12-5 16-3V64H0z" fill="#2f6fc2"/>
+  </g>
 </svg>

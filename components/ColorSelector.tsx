@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { HexColorInput, HexColorPicker } from "react-colorful";
 import { LuPencil } from "react-icons/lu";
 import {
@@ -9,8 +9,8 @@ import {
   setWaveColor,
   subscribeWaveColor,
   wavePresets,
-  applyWaveColor,
 } from "@/lib/wave-color";
+import { useDismiss } from "@/lib/use-dismiss";
 
 interface Props {
   labels: {
@@ -38,30 +38,14 @@ export default function ColorSelector({ labels }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const isCustom = !wavePresets.some((p) => p.color === color);
 
-  // Switching languages swaps the root layout, which resets <html>'s inline style.
-  useEffect(() => {
-    applyWaveColor(color);
-  }, [color]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useDismiss(rootRef, open, useCallback(() => setOpen(false), []));
 
   const ring = (active: boolean) =>
     active ? "ring-2 ring-white/90 ring-offset-2 ring-offset-transparent" : "ring-1 ring-white/30";
 
   return (
-    <div ref={rootRef} className="relative z-30 flex justify-center">
+    // Sized to the pill (not the full row), so clicks beside it count as outside.
+    <div ref={rootRef} className="relative z-30 mx-auto w-fit">
       <div
         role="radiogroup"
         aria-label={labels.label}
@@ -100,7 +84,7 @@ export default function ColorSelector({ labels }: Props) {
       </div>
 
       {open && (
-        <div className="glass glass-dense absolute top-full mt-3 flex flex-col gap-3 rounded-3xl p-3">
+        <div className="glass glass-dense absolute top-full left-1/2 mt-3 flex w-max -translate-x-1/2 flex-col gap-3 rounded-3xl p-3">
           <HexColorPicker color={color} onChange={setWaveColor} />
           <label className="flex items-center gap-2 text-sm text-white/70">
             {labels.hex}
